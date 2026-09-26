@@ -1,0 +1,38 @@
+name: Self-test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  self-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run truestats against mk24x7
+        id: truestats
+        uses: ./
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          user: mk24x7
+          cards: stats,languages,streak
+          pins: mk24x7/prune
+          theme: dark
+          output_dir: self-test-cards
+          commit: 'false'
+      - name: Show outputs
+        run: |
+          echo "files: ${{ steps.truestats.outputs.files }}"
+          echo "committed: ${{ steps.truestats.outputs.committed }}"
+          test -s self-test-cards/stats.svg
+          test -s self-test-cards/languages.svg
+          test -s self-test-cards/streak.svg
+          test -s self-test-cards/pin-mk24x7-prune.svg
+      - uses: actions/upload-artifact@v7
+        with:
+          name: truestats-cards
+          path: self-test-cards/*.svg
