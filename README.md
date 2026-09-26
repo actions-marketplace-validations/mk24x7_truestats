@@ -41,7 +41,7 @@ Cards:
 | Card | Shows |
 | --- | --- |
 | `stats` | All-time commits (private contributions included), pull requests, issues, code reviews, stars earned, followers, repositories contributed to in the last year |
-| `languages` | Top N languages by bytes across every repository the token can see, as a stacked bar plus legend; forks excluded |
+| `languages` | Top N languages by bytes across every repository the token can see, as a stacked bar plus legend; forks and archived repositories excluded by default |
 | `streak` | Contributions this calendar year, current streak, longest streak (all time) |
 | `pin` | One card per repository listed in `pins`: description, primary language, stars, forks |
 
@@ -134,6 +134,7 @@ node src/cli.js --token "$(gh auth token)" --user your-name \
 | `commit` | `true` | Commit and push changed cards. Set `false` to only write files (for example to upload them as an artifact). |
 | `languages_count` | `8` | Languages shown on the languages card (1-20); the rest are grouped as Other. |
 | `exclude_repos` | `""` | Comma list of repositories (`name` or `owner/name`) ignored for languages and stars. |
+| `exclude_archived` | `true` | Ignore archived repositories for languages and stars, so old mirrors and abandoned projects do not dominate the languages card. Set `false` to include them. |
 
 Outputs: `files` (comma list of written paths) and `committed` (`true` or `false`).
 
