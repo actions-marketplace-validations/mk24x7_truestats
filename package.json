@@ -1,0 +1,27 @@
+{
+  "name": "truestats",
+  "version": "1.0.0",
+  "description": "GitHub profile stat cards generated inside your own repository, counting private contributions. No third-party server.",
+  "license": "MIT",
+  "author": "Mukul Kumar Yadav",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mk24x7/truestats.git"
+  },
+  "homepage": "https://github.com/mk24x7/truestats#readme",
+  "bugs": "https://github.com/mk24x7/truestats/issues",
+  "keywords": ["github-action", "github-stats", "readme", "profile", "svg", "contributions"],
+  "main": "src/run.js",
+  "bin": {
+    "truestats": "src/cli.js"
+  },
+  "files": ["src", "dist", "action.yml"],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node scripts/build.js",
+    "test": "node --test \"test/*.test.js\"",
+    "check-ascii": "node scripts/check-ascii.js"
+  }
+}

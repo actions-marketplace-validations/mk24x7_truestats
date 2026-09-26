@@ -1,0 +1,57 @@
+name: TrueStats Profile Cards
+description: Generate GitHub profile stat cards (stats, languages, streak, pinned repos) in your own repo, counting private contributions.
+author: Mukul Kumar Yadav
+branding:
+  icon: bar-chart
+  color: blue
+inputs:
+  token:
+    description: >-
+      Token used to read GitHub data. Recommended: a fine-grained personal access token with read-only
+      access to all your repositories (Metadata and Contents: read) so private repositories count toward
+      languages and stars. The workflow GITHUB_TOKEN works for public data and private contribution counts.
+    required: true
+  user:
+    description: GitHub username to generate cards for.
+    required: false
+    default: ${{ github.repository_owner }}
+  cards:
+    description: Comma-separated cards to render. Any of stats, languages, streak, pin.
+    required: false
+    default: stats,languages,streak
+  pins:
+    description: Comma-separated owner/name repositories to render as pin cards.
+    required: false
+    default: ''
+  theme:
+    description: Colour theme. One of light, dark, tokyonight, transparent.
+    required: false
+    default: dark
+  colors:
+    description: Optional colour overrides, e.g. "bg=0d1117,title=58a6ff". Keys are bg, border, title, text, muted, accent, track.
+    required: false
+    default: ''
+  output_dir:
+    description: Directory (relative to the workspace) the SVG files are written to.
+    required: false
+    default: cards
+  commit:
+    description: Commit and push changed cards with the workflow token. Set to "false" to only write files.
+    required: false
+    default: 'true'
+  languages_count:
+    description: Number of languages shown on the languages card (1-20); the rest are grouped as Other.
+    required: false
+    default: '8'
+  exclude_repos:
+    description: Comma-separated repositories (name or owner/name) to ignore for languages and stars.
+    required: false
+    default: ''
+outputs:
+  files:
+    description: Comma-separated paths of the SVG files that were written.
+  committed:
+    description: '"true" when updated cards were committed and pushed.'
+runs:
+  using: node24
+  main: dist/index.js
