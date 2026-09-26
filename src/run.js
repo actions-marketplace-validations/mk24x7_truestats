@@ -46,6 +46,7 @@ async function generate(options, log = consoleLog) {
   if (cards.includes('pin') && pins.length === 0) log.warn('Card "pin" was requested but "pins" is empty; no pin cards will be rendered.');
 
   const exclude = splitList(options.excludeRepos);
+  const excludeArchived = String(options.excludeArchived == null ? 'true' : options.excludeArchived).trim().toLowerCase() !== 'false';
   const languagesCount = Math.min(20, Math.max(1, parseInt(options.languagesCount, 10) || 8));
   const theme = resolveTheme(options.theme, parseColors(options.colors, log.warn), log.warn);
   const outDir = path.resolve(options.outDir || 'cards');
@@ -90,11 +91,11 @@ async function generate(options, log = consoleLog) {
 
   const result = { files };
   if (cards.includes('stats')) {
-    result.stats = data.computeStats({ user: profile, repos, years, exclude });
+    result.stats = data.computeStats({ user: profile, repos, years, exclude, excludeArchived });
     write('stats.svg', renderStats(result.stats, theme));
   }
   if (cards.includes('languages')) {
-    result.languages = data.aggregateLanguages(repos, { count: languagesCount, exclude });
+    result.languages = data.aggregateLanguages(repos, { count: languagesCount, exclude, excludeArchived });
     write('languages.svg', renderLanguages(result.languages, theme));
   }
   if (cards.includes('streak')) {

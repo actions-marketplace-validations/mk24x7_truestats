@@ -20,6 +20,7 @@ Options:
   --out <dir>                Output directory (default: cards)
   --languages-count <n>      Number of languages to show (default: 8)
   --exclude-repos <list>     Comma list of repositories to ignore
+  --exclude-archived <bool>  Ignore archived repositories for languages and stars (default: true)
   -h, --help                 Show this help
 `;
 
@@ -64,6 +65,7 @@ async function cli(argv = process.argv.slice(2)) {
     outDir: args.out,
     languagesCount: args['languages-count'],
     excludeRepos: args['exclude-repos'],
+    excludeArchived: args['exclude-archived'],
   });
   if (result.stats) console.log(JSON.stringify({ stats: result.stats }, null, 2));
   return 0;
@@ -192,13 +194,14 @@ function isExcluded(repo, excludeList) {
  * Forks are skipped (their code is mostly someone else's) and so are excluded repos.
  * Returns the top `count` languages plus an "Other" bucket for the remainder.
  */
-function aggregateLanguages(repos, { count = 8, exclude = [], includeForks = false } = {}) {
+function aggregateLanguages(repos, { count = 8, exclude = [], includeForks = false, excludeArchived = true } = {}) {
   const totals = new Map();
   const colors = new Map();
   let repoCount = 0;
   let privateCount = 0;
   for (const repo of repos) {
     if (!includeForks && repo.isFork) continue;
+    if (excludeArchived && repo.isArchived) continue;
     if (isExcluded(repo, exclude)) continue;
     repoCount += 1;
     if (repo.isPrivate) privateCount += 1;
@@ -220,7 +223,7 @@ function aggregateLanguages(repos, { count = 8, exclude = [], includeForks = fal
   if (otherSize > 0) {
     withPercent.push({ name: 'Other', size: otherSize, color: null, percent: (otherSize / totalBytes) * 100, other: true });
   }
-  return { languages: withPercent, totalBytes, repoCount, privateCount };
+  return { languages: withPercent, totalBytes, repoCount, privateCount, excludeArchived: Boolean(excludeArchived) };
 }
 
 /**
@@ -228,9 +231,9 @@ function aggregateLanguages(repos, { count = 8, exclude = [], includeForks = fal
  * Commits include private (restricted) contributions and cover every year since
  * the account was created.
  */
-function computeStats({ user, repos, years, exclude = [] }) {
+function computeStats({ user, repos, years, exclude = [], excludeArchived = true }) {
   const sum = (key) => years.reduce((acc, y) => acc + (y[key] || 0), 0);
-  const visibleRepos = repos.filter((r) => !isExcluded(r, exclude));
+  const visibleRepos = repos.filter((r) => !isExcluded(r, exclude) && !(excludeArchived && r.isArchived));
   const publicCommits = sum('commits');
   const privateContributions = sum('restricted');
   return {
@@ -428,6 +431,7 @@ query($login: String!, $after: String) {
         nameWithOwner
         isPrivate
         isFork
+        isArchived
         stargazerCount
         forkCount
         languages(first: 10, orderBy: {field: SIZE, direction: DESC}) {
@@ -638,6 +642,7 @@ async function main() {
       outDir,
       languagesCount: getInput('languages_count', '8'),
       excludeRepos: getInput('exclude_repos', ''),
+      excludeArchived: getInput('exclude_archived', 'true'),
     },
     log,
   );
@@ -709,6 +714,7 @@ async function generate(options, log = consoleLog) {
   if (cards.includes('pin') && pins.length === 0) log.warn('Card "pin" was requested but "pins" is empty; no pin cards will be rendered.');
 
   const exclude = splitList(options.excludeRepos);
+  const excludeArchived = String(options.excludeArchived == null ? 'true' : options.excludeArchived).trim().toLowerCase() !== 'false';
   const languagesCount = Math.min(20, Math.max(1, parseInt(options.languagesCount, 10) || 8));
   const theme = resolveTheme(options.theme, parseColors(options.colors, log.warn), log.warn);
   const outDir = path.resolve(options.outDir || 'cards');
@@ -753,11 +759,11 @@ async function generate(options, log = consoleLog) {
 
   const result = { files };
   if (cards.includes('stats')) {
-    result.stats = data.computeStats({ user: profile, repos, years, exclude });
+    result.stats = data.computeStats({ user: profile, repos, years, exclude, excludeArchived });
     write('stats.svg', renderStats(result.stats, theme));
   }
   if (cards.includes('languages')) {
-    result.languages = data.aggregateLanguages(repos, { count: languagesCount, exclude });
+    result.languages = data.aggregateLanguages(repos, { count: languagesCount, exclude, excludeArchived });
     write('languages.svg', renderLanguages(result.languages, theme));
   }
   if (cards.includes('streak')) {
@@ -915,7 +921,7 @@ function renderLanguages(model, theme) {
   const rows = Math.max(1, Math.ceil(languages.length / 2));
   const footerY = LEGEND_START + (rows - 1) * LEGEND_GAP + 32;
   const privateNote = privateCount > 0 ? ` (${formatNumber(privateCount)} private)` : ' (public only)';
-  parts.push(`  <text x="${PAD}" y="${footerY}" class="small">${escapeXml(`By bytes across ${formatNumber(repoCount)} repositories${privateNote}. Forks excluded.`)}</text>`);
+  parts.push(`  <text x="${PAD}" y="${footerY}" class="small">${escapeXml(`By bytes across ${formatNumber(repoCount)} repositories${privateNote}. ${model.excludeArchived ? 'Archived and forks excluded.' : 'Forks excluded.'}`)}</text>`);
   const height = footerY + 22;
   const desc = languages.length
     ? languages.map((l) => `${l.name} ${formatPercent(l.percent)}`).join(', ')

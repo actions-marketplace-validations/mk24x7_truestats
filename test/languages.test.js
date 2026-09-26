@@ -59,3 +59,24 @@ test('computeStats adds private contributions to all-time commits', () => {
   assert.equal(s.firstYear, 2024);
   assert.equal(computeStats({ user: fixture.user, repos: fixture.repos, years: fixture.years, exclude: ['site'] }).stars, 6);
 });
+
+test('archived repositories are excluded from languages and stars by default', () => {
+  const archived = {
+    name: 'old-mirror', nameWithOwner: 'octo-dev/old-mirror', isPrivate: false, isFork: false, isArchived: true,
+    stargazerCount: 100, forkCount: 0,
+    languages: { edges: [{ size: 5000000, node: { name: 'C', color: '#555555' } }] },
+  };
+  const repos = [...fixture.repos, archived];
+
+  const dropped = aggregateLanguages(repos, { count: 20 });
+  assert.ok(!dropped.languages.some((l) => l.name === 'C'));
+  assert.equal(dropped.repoCount, 4);
+  assert.equal(dropped.excludeArchived, true);
+  assert.equal(computeStats({ user: fixture.user, repos, years: fixture.years }).stars, 48);
+
+  const kept = aggregateLanguages(repos, { count: 20, excludeArchived: false });
+  assert.equal(kept.languages[0].name, 'C');
+  assert.equal(kept.repoCount, 5);
+  assert.equal(kept.excludeArchived, false);
+  assert.equal(computeStats({ user: fixture.user, repos, years: fixture.years, excludeArchived: false }).stars, 148);
+});

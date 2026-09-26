@@ -75,6 +75,7 @@ async function main() {
       outDir,
       languagesCount: getInput('languages_count', '8'),
       excludeRepos: getInput('exclude_repos', ''),
+      excludeArchived: getInput('exclude_archived', 'true'),
     },
     log,
   );

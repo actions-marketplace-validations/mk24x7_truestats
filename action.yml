@@ -47,6 +47,10 @@ inputs:
     description: Comma-separated repositories (name or owner/name) to ignore for languages and stars.
     required: false
     default: ''
+  exclude_archived:
+    description: Ignore archived repositories for languages and stars. Set to "false" to include them.
+    required: false
+    default: 'true'
 outputs:
   files:
     description: Comma-separated paths of the SVG files that were written.

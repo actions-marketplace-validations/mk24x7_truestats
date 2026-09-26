@@ -48,7 +48,7 @@ function renderLanguages(model, theme) {
   const rows = Math.max(1, Math.ceil(languages.length / 2));
   const footerY = LEGEND_START + (rows - 1) * LEGEND_GAP + 32;
   const privateNote = privateCount > 0 ? ` (${formatNumber(privateCount)} private)` : ' (public only)';
-  parts.push(`  <text x="${PAD}" y="${footerY}" class="small">${escapeXml(`By bytes across ${formatNumber(repoCount)} repositories${privateNote}. Forks excluded.`)}</text>`);
+  parts.push(`  <text x="${PAD}" y="${footerY}" class="small">${escapeXml(`By bytes across ${formatNumber(repoCount)} repositories${privateNote}. ${model.excludeArchived ? 'Archived and forks excluded.' : 'Forks excluded.'}`)}</text>`);
   const height = footerY + 22;
   const desc = languages.length
     ? languages.map((l) => `${l.name} ${formatPercent(l.percent)}`).join(', ')

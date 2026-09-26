@@ -105,13 +105,14 @@ function isExcluded(repo, excludeList) {
  * Forks are skipped (their code is mostly someone else's) and so are excluded repos.
  * Returns the top `count` languages plus an "Other" bucket for the remainder.
  */
-function aggregateLanguages(repos, { count = 8, exclude = [], includeForks = false } = {}) {
+function aggregateLanguages(repos, { count = 8, exclude = [], includeForks = false, excludeArchived = true } = {}) {
   const totals = new Map();
   const colors = new Map();
   let repoCount = 0;
   let privateCount = 0;
   for (const repo of repos) {
     if (!includeForks && repo.isFork) continue;
+    if (excludeArchived && repo.isArchived) continue;
     if (isExcluded(repo, exclude)) continue;
     repoCount += 1;
     if (repo.isPrivate) privateCount += 1;
@@ -133,7 +134,7 @@ function aggregateLanguages(repos, { count = 8, exclude = [], includeForks = fal
   if (otherSize > 0) {
     withPercent.push({ name: 'Other', size: otherSize, color: null, percent: (otherSize / totalBytes) * 100, other: true });
   }
-  return { languages: withPercent, totalBytes, repoCount, privateCount };
+  return { languages: withPercent, totalBytes, repoCount, privateCount, excludeArchived: Boolean(excludeArchived) };
 }
 
 /**
@@ -141,9 +142,9 @@ function aggregateLanguages(repos, { count = 8, exclude = [], includeForks = fal
  * Commits include private (restricted) contributions and cover every year since
  * the account was created.
  */
-function computeStats({ user, repos, years, exclude = [] }) {
+function computeStats({ user, repos, years, exclude = [], excludeArchived = true }) {
   const sum = (key) => years.reduce((acc, y) => acc + (y[key] || 0), 0);
-  const visibleRepos = repos.filter((r) => !isExcluded(r, exclude));
+  const visibleRepos = repos.filter((r) => !isExcluded(r, exclude) && !(excludeArchived && r.isArchived));
   const publicCommits = sum('commits');
   const privateContributions = sum('restricted');
   return {

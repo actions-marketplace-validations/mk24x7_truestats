@@ -152,6 +152,7 @@ query($login: String!, $after: String) {
         nameWithOwner
         isPrivate
         isFork
+        isArchived
         stargazerCount
         forkCount
         languages(first: 10, orderBy: {field: SIZE, direction: DESC}) {

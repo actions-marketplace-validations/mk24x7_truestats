@@ -55,5 +55,5 @@
     <text x="256" y="140" class="body">Other</text>
     <text x="444" y="140" class="label" text-anchor="end">1.7%</text>
   </g>
-  <text x="24" y="172" class="small">By bytes across 4 repositories (2 private). Forks excluded.</text>
+  <text x="24" y="172" class="small">By bytes across 4 repositories (2 private). Archived and forks excluded.</text>
 </svg>

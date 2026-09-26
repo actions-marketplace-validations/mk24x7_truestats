@@ -62,6 +62,8 @@ test('languages card renders a stacked bar and legend', () => {
   assert.ok(svg.includes('>Other</text>'));
   assert.ok(svg.includes('fill="#00ADD8"'), 'uses the embedded GitHub colour for Go');
   assert.ok(svg.includes('4 repositories (2 private)'));
+  assert.ok(svg.includes('Archived and forks excluded.'));
+  assert.ok(renderLanguages({ ...langs, excludeArchived: false }, dark).includes('. Forks excluded.'));
   matchSnapshot('languages-dark', svg);
 });
 

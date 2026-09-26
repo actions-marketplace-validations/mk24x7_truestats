@@ -17,6 +17,7 @@ Options:
   --out <dir>                Output directory (default: cards)
   --languages-count <n>      Number of languages to show (default: 8)
   --exclude-repos <list>     Comma list of repositories to ignore
+  --exclude-archived <bool>  Ignore archived repositories for languages and stars (default: true)
   -h, --help                 Show this help
 `;
 
@@ -61,6 +62,7 @@ async function cli(argv = process.argv.slice(2)) {
     outDir: args.out,
     languagesCount: args['languages-count'],
     excludeRepos: args['exclude-repos'],
+    excludeArchived: args['exclude-archived'],
   });
   if (result.stats) console.log(JSON.stringify({ stats: result.stats }, null, 2));
   return 0;
