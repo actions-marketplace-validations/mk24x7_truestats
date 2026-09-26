@@ -1,5 +1,5 @@
 {
-  "name": "truestats",
+  "name": "@mk24x7/truestats",
   "version": "1.0.1",
   "description": "GitHub profile stat cards generated inside your own repository, counting private contributions. No third-party server.",
   "license": "MIT",
@@ -10,12 +10,26 @@
   },
   "homepage": "https://github.com/mk24x7/truestats#readme",
   "bugs": "https://github.com/mk24x7/truestats/issues",
-  "keywords": ["github-action", "github-stats", "readme", "profile", "svg", "contributions"],
+  "keywords": [
+    "github-action",
+    "github-stats",
+    "readme",
+    "profile",
+    "svg",
+    "contributions"
+  ],
   "main": "src/run.js",
   "bin": {
     "truestats": "src/cli.js"
   },
-  "files": ["src", "dist", "action.yml"],
+  "files": [
+    "src",
+    "dist",
+    "action.yml",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "engines": {
     "node": ">=20"
   },
@@ -23,5 +37,8 @@
     "build": "node scripts/build.js",
     "test": "node --test \"test/*.test.js\"",
     "check-ascii": "node scripts/check-ascii.js"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
