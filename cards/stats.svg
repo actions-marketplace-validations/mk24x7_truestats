@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="480" height="282" viewBox="0 0 480 282" role="img" aria-labelledby="truestats-stats-title truestats-stats-desc">
   <title id="truestats-stats-title">Mukul Kumar Yadav&#39;s GitHub stats</title>
-  <desc id="truestats-stats-desc">Commits (all time, incl. private): 1,689. Pull requests: 5. Issues: 4. Code reviews: 0. Stars earned: 4. Followers: 2. Contributed to (last year): 5</desc>
+  <desc id="truestats-stats-desc">Commits (all time, incl. private): 1,696. Pull requests: 5. Issues: 4. Code reviews: 0. Stars earned: 3. Followers: 2. Contributed to (last year): 5</desc>
   <style>
     text { font-family: -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Helvetica, Arial, sans-serif; }
     .title { font-size: 16px; font-weight: 600; fill: #e6edf3; }
@@ -16,7 +16,7 @@
   <g>
     <rect x="24" y="60" width="3" height="12" rx="1.5" class="accent"/>
     <text x="36" y="70" class="label">Commits (all time, incl. private)</text>
-    <text x="456" y="70" class="value" text-anchor="end">1,689</text>
+    <text x="456" y="70" class="value" text-anchor="end">1,696</text>
   </g>
   <g>
     <rect x="24" y="86" width="3" height="12" rx="1.5" class="accent" opacity="0.35"/>
@@ -36,7 +36,7 @@
   <g>
     <rect x="24" y="164" width="3" height="12" rx="1.5" class="accent" opacity="0.35"/>
     <text x="36" y="174" class="label">Stars earned</text>
-    <text x="456" y="174" class="value" text-anchor="end">4</text>
+    <text x="456" y="174" class="value" text-anchor="end">3</text>
   </g>
   <g>
     <rect x="24" y="190" width="3" height="12" rx="1.5" class="accent" opacity="0.35"/>
