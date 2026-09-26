@@ -1,6 +1,6 @@
 'use strict';
 
-const { WIDTH, PAD, escapeXml, formatNumber, languageColor, renderCard } = require('./common');
+const { WIDTH, PAD, TITLE_Y, CONTENT_Y, escapeXml, formatNumber, languageColor, footerLayout, renderCard } = require('./common');
 
 // Roughly 62 characters of 13px system sans fit in the 432px text column.
 const CHARS_PER_LINE = 62;
@@ -33,35 +33,46 @@ function slugFor(nameWithOwner) {
   return String(nameWithOwner).toLowerCase().replace(/[^a-z0-9._-]+/g, '-');
 }
 
-function renderPin(repo, theme) {
-  const parts = [];
-  const lines = wrapText(repo.description || 'No description provided.');
+function renderPin(repo, theme, { height } = {}) {
   const tags = [];
   if (repo.isPrivate) tags.push('Private');
   if (repo.isArchived) tags.push('Archived');
   if (repo.isFork) tags.push('Fork');
-  if (tags.length) {
-    parts.push(`  <text x="${WIDTH - PAD}" y="36" class="small" text-anchor="end">${escapeXml(tags.join(' / '))}</text>`);
-  }
-  lines.forEach((line, i) => {
-    parts.push(`  <text x="${PAD}" y="${64 + i * 20}" class="body">${escapeXml(line)}</text>`);
-  });
-  const metaY = 64 + (lines.length - 1) * 20 + 34;
+  const header = tags.length
+    ? `  <text x="${WIDTH - PAD}" y="${TITLE_Y}" class="small" text-anchor="end">${escapeXml(tags.join(' / '))}</text>`
+    : '';
+
+  const lines = wrapText(repo.description || 'No description provided.');
+  const body = lines.map((line, i) => `  <text x="${PAD}" y="${CONTENT_Y + i * 20}" class="body">${escapeXml(line)}</text>`).join('\n');
+
+  // The metadata row is the pin card's footer: same style and bottom padding as other footers.
+  const { footerY, height: naturalHeight } = footerLayout(CONTENT_Y + (lines.length - 1) * 20);
+  const meta = [];
   let x = PAD;
   const lang = repo.primaryLanguage;
   if (lang && lang.name) {
-    parts.push(`  <circle cx="${x + 5}" cy="${metaY - 4}" r="5" fill="${languageColor(lang.name, lang.color)}"/>`);
-    parts.push(`  <text x="${x + 16}" y="${metaY}" class="label">${escapeXml(lang.name)}</text>`);
-    x += 16 + [...lang.name].length * 7.5 + 20;
+    meta.push(`  <circle cx="${x + 5}" cy="${footerY - 4}" r="5" fill="${languageColor(lang.name, lang.color)}"/>`);
+    meta.push(`  <text x="${x + 16}" y="${footerY}" class="small">${escapeXml(lang.name)}</text>`);
+    x += 16 + [...lang.name].length * 7 + 18;
   }
   const stars = `${formatNumber(repo.stargazerCount)} ${repo.stargazerCount === 1 ? 'star' : 'stars'}`;
   const forks = `${formatNumber(repo.forkCount)} ${repo.forkCount === 1 ? 'fork' : 'forks'}`;
-  parts.push(`  <text x="${x}" y="${metaY}" class="label">${escapeXml(stars)}</text>`);
-  x += stars.length * 7.5 + 20;
-  parts.push(`  <text x="${x}" y="${metaY}" class="label">${escapeXml(forks)}</text>`);
-  const height = metaY + 24;
+  meta.push(`  <text x="${x}" y="${footerY}" class="small">${escapeXml(stars)}</text>`);
+  x += stars.length * 7 + 18;
+  meta.push(`  <text x="${x}" y="${footerY}" class="small">${escapeXml(forks)}</text>`);
+
   const desc = `${repo.nameWithOwner}: ${repo.description || 'No description'}. ${lang && lang.name ? `${lang.name}. ` : ''}${stars}, ${forks}.`;
-  return renderCard({ id: `truestats-pin-${slugFor(repo.nameWithOwner)}`, height, title: repo.name, desc, body: parts.join('\n'), theme });
+  return renderCard({
+    id: `truestats-pin-${slugFor(repo.nameWithOwner)}`,
+    naturalHeight,
+    height,
+    title: repo.name,
+    desc,
+    header,
+    body,
+    footer: meta.join('\n'),
+    theme,
+  });
 }
 
 module.exports = { renderPin, wrapText, slugFor };

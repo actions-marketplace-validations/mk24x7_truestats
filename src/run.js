@@ -21,6 +21,33 @@ function splitList(value) {
     .filter(Boolean);
 }
 
+const DEFAULT_LAYOUT = 'stats,languages;streak,pin';
+
+/**
+ * Parse "stats,languages;streak,pin" into [['stats','languages'],['streak','pin']].
+ * Rows are separated by semicolons, cards within a row by commas.
+ */
+function parseLayout(spec) {
+  if (String(spec == null ? '' : spec).trim().toLowerCase() === 'none') return [];
+  const rows = String(spec == null ? DEFAULT_LAYOUT : spec)
+    .split(';')
+    .map((row) => splitList(row).map((c) => c.toLowerCase()))
+    .filter((row) => row.length > 0);
+  const seen = new Set();
+  for (const row of rows) {
+    for (const c of row) {
+      if (!KNOWN_CARDS.includes(c)) throw new Error(`Unknown card "${c}" in layout. Valid cards: ${KNOWN_CARDS.join(', ')}.`);
+      if (seen.has(c)) throw new Error(`Card "${c}" appears in more than one layout row.`);
+      seen.add(c);
+    }
+  }
+  return rows;
+}
+
+function svgHeight(svg) {
+  return Number(/<svg [^>]*height="(\d+)"/.exec(svg)[1]);
+}
+
 const consoleLog = {
   info: (msg) => console.log(msg),
   warn: (msg) => console.warn(`warning: ${msg}`),
@@ -50,6 +77,7 @@ async function generate(options, log = consoleLog) {
   const languagesCount = Math.min(20, Math.max(1, parseInt(options.languagesCount, 10) || 8));
   const theme = resolveTheme(options.theme, parseColors(options.colors, log.warn), log.warn);
   const outDir = path.resolve(options.outDir || 'cards');
+  const layout = parseLayout(options.layout);
   const now = options.now || new Date();
 
   const client = options.client || gql.createClient({ token: options.token, fetch: options.fetch });
@@ -80,35 +108,50 @@ async function generate(options, log = consoleLog) {
     log.info(`Contribution history: ${years.length} years, ${restricted} private contributions reported by GitHub.`);
   }
 
-  fs.mkdirSync(outDir, { recursive: true });
-  const files = [];
-  const write = (name, svg) => {
-    const file = path.join(outDir, name);
-    fs.writeFileSync(file, svg);
-    files.push(file);
-    log.info(`Wrote ${path.relative(process.cwd(), file) || file}`);
-  };
-
-  const result = { files };
+  // Build every card as a render function first so rows can share a height.
+  const entries = [];
+  const result = {};
   if (cards.includes('stats')) {
-    result.stats = data.computeStats({ user: profile, repos, years, exclude, excludeArchived });
-    write('stats.svg', renderStats(result.stats, theme));
+    const model = data.computeStats({ user: profile, repos, years, exclude, excludeArchived });
+    result.stats = model;
+    entries.push({ card: 'stats', name: 'stats.svg', render: (o) => renderStats(model, theme, o) });
   }
   if (cards.includes('languages')) {
-    result.languages = data.aggregateLanguages(repos, { count: languagesCount, exclude, excludeArchived });
-    write('languages.svg', renderLanguages(result.languages, theme));
+    const model = data.aggregateLanguages(repos, { count: languagesCount, exclude, excludeArchived });
+    result.languages = model;
+    entries.push({ card: 'languages', name: 'languages.svg', render: (o) => renderLanguages(model, theme, o) });
   }
   if (cards.includes('streak')) {
-    result.streak = data.computeStreakCard(years, now);
-    write('streak.svg', renderStreak(result.streak, theme));
+    const model = data.computeStreakCard(years, now);
+    result.streak = model;
+    entries.push({ card: 'streak', name: 'streak.svg', render: (o) => renderStreak(model, theme, o) });
   }
   result.pins = [];
   for (const pin of pins) {
     const repo = await gql.fetchRepository(client, pin.owner, pin.name);
     result.pins.push(repo);
-    write(`pin-${slugFor(repo.nameWithOwner)}.svg`, renderPin(repo, theme));
+    entries.push({ card: 'pin', name: `pin-${slugFor(repo.nameWithOwner)}.svg`, render: (o) => renderPin(repo, theme, o) });
+  }
+
+  for (const e of entries) e.naturalHeight = svgHeight(e.render({}));
+  for (const row of layout) {
+    const members = entries.filter((e) => row.includes(e.card));
+    const rowHeight = Math.max(0, ...members.map((e) => e.naturalHeight));
+    for (const e of members) e.height = rowHeight;
+  }
+
+  fs.mkdirSync(outDir, { recursive: true });
+  result.files = [];
+  result.heights = {};
+  for (const e of entries) {
+    const svg = e.render({ height: e.height });
+    const file = path.join(outDir, e.name);
+    fs.writeFileSync(file, svg);
+    result.files.push(file);
+    result.heights[e.name] = svgHeight(svg);
+    log.info(`Wrote ${path.relative(process.cwd(), file) || file} (${result.heights[e.name]}px tall)`);
   }
   return result;
 }
 
-module.exports = { generate, splitList, KNOWN_CARDS };
+module.exports = { generate, splitList, parseLayout, KNOWN_CARDS, DEFAULT_LAYOUT };

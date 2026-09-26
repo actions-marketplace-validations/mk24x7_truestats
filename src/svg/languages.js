@@ -1,13 +1,13 @@
 'use strict';
 
-const { WIDTH, PAD, escapeXml, formatNumber, formatPercent, languageColor, renderCard } = require('./common');
+const { WIDTH, PAD, CONTENT_Y, escapeXml, formatNumber, formatPercent, languageColor, footerLayout, footerText, renderCard } = require('./common');
 
-const BAR_Y = 54;
 const BAR_H = 10;
-const LEGEND_START = 92;
+const BAR_Y = CONTENT_Y - BAR_H; // bar sits where the first line of text would
+const LEGEND_START = CONTENT_Y + 28;
 const LEGEND_GAP = 24;
 
-function renderLanguages(model, theme) {
+function renderLanguages(model, theme, { height } = {}) {
   const { languages, repoCount, privateCount } = model;
   const barWidth = WIDTH - PAD * 2;
   const parts = [];
@@ -33,10 +33,8 @@ function renderLanguages(model, theme) {
 
     const colWidth = barWidth / 2;
     languages.forEach((lang, i) => {
-      const col = i % 2;
-      const row = Math.floor(i / 2);
-      const cx = PAD + col * colWidth;
-      const y = LEGEND_START + row * LEGEND_GAP;
+      const cx = PAD + (i % 2) * colWidth;
+      const y = LEGEND_START + Math.floor(i / 2) * LEGEND_GAP;
       parts.push('  <g>');
       parts.push(`    <circle cx="${cx + 5}" cy="${y - 4}" r="5" fill="${languageColor(lang.name, lang.color)}"/>`);
       parts.push(`    <text x="${cx + 16}" y="${y}" class="body">${escapeXml(lang.name)}</text>`);
@@ -46,14 +44,12 @@ function renderLanguages(model, theme) {
   }
 
   const rows = Math.max(1, Math.ceil(languages.length / 2));
-  const footerY = LEGEND_START + (rows - 1) * LEGEND_GAP + 32;
+  const { footerY, height: naturalHeight } = footerLayout(LEGEND_START + (rows - 1) * LEGEND_GAP);
   const privateNote = privateCount > 0 ? ` (${formatNumber(privateCount)} private)` : ' (public only)';
-  parts.push(`  <text x="${PAD}" y="${footerY}" class="small">${escapeXml(`By bytes across ${formatNumber(repoCount)} repositories${privateNote}. ${model.excludeArchived ? 'Archived and forks excluded.' : 'Forks excluded.'}`)}</text>`);
-  const height = footerY + 22;
-  const desc = languages.length
-    ? languages.map((l) => `${l.name} ${formatPercent(l.percent)}`).join(', ')
-    : 'No language data';
-  return renderCard({ id: 'truestats-languages', height, title: 'Most used languages', desc, body: parts.join('\n'), theme });
+  const excluded = model.excludeArchived ? 'Archived and forks excluded.' : 'Forks excluded.';
+  const footer = footerText(footerY, `By bytes across ${formatNumber(repoCount)} repositories${privateNote}. ${excluded}`);
+  const desc = languages.length ? languages.map((l) => `${l.name} ${formatPercent(l.percent)}`).join(', ') : 'No language data';
+  return renderCard({ id: 'truestats-languages', naturalHeight, height, title: 'Most used languages', desc, body: parts.join('\n'), footer, theme });
 }
 
 module.exports = { renderLanguages };

@@ -78,3 +78,59 @@ test('generate validates user, cards and pins', async () => {
   await assert.rejects(generate({ ...base, user: 'octo', cards: 'stats,trophies' }, quietLog().log), /Unknown card "trophies"/);
   await assert.rejects(generate({ ...base, user: 'octo', pins: 'not-a-repo' }, quietLog().log), /Invalid pin/);
 });
+
+const heightOf = (file) => Number(/<svg [^>]*height="(\d+)"/.exec(fs.readFileSync(file, 'utf8'))[1]);
+
+test('cards in a layout row share the tallest height; cards outside keep their natural height', async () => {
+  const run = async (layout) => {
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'truestats-'));
+    const { fetch } = mockFetch(apiHandler());
+    await generate(
+      { token: 't', fetch, user: 'octo-dev', cards: 'stats,languages,streak', pins: 'octo-dev/truestats-demo', outDir, layout, now: new Date('2025-06-06T00:00:00Z') },
+      quietLog().log,
+    );
+    const h = (name) => heightOf(path.join(outDir, name));
+    return { stats: h('stats.svg'), languages: h('languages.svg'), streak: h('streak.svg'), pin: h('pin-octo-dev-truestats-demo.svg') };
+  };
+
+  const natural = await run('none');
+  assert.notEqual(natural.stats, natural.languages, 'fixture cards differ in natural height');
+  assert.notEqual(natural.streak, natural.pin, 'fixture cards differ in natural height');
+
+  const paired = await run('stats,languages;streak,pin');
+  assert.equal(paired.stats, paired.languages);
+  assert.equal(paired.stats, Math.max(natural.stats, natural.languages));
+  assert.equal(paired.streak, paired.pin);
+  assert.equal(paired.streak, Math.max(natural.streak, natural.pin));
+
+  const partial = await run('stats,languages');
+  assert.equal(partial.stats, partial.languages);
+  assert.equal(partial.streak, natural.streak, 'streak is not in the layout');
+  assert.equal(partial.pin, natural.pin, 'pin is not in the layout');
+});
+
+test('taller frame keeps the title in place, centres the body and pins the footer', () => {
+  const { renderStreak } = require('../src/svg/streak');
+  const data = require('../src/data');
+  const { resolveTheme } = require('../src/svg/theme');
+  const model = data.computeStreakCard(fixture.years, new Date('2025-06-06T00:00:00Z'));
+  const natural = renderStreak(model, resolveTheme('dark'));
+  const tall = renderStreak(model, resolveTheme('dark'), { height: heightFromSvg(natural) + 40 });
+  assert.equal(heightFromSvg(tall), heightFromSvg(natural) + 40);
+  assert.ok(tall.includes('<text x="24" y="36" class="title">'), 'title stays at the top offset');
+  assert.ok(tall.includes('<g transform="translate(0 20)">'), 'body centred in the extra 40px');
+  assert.ok(tall.includes('<g transform="translate(0 40)">'), 'footer moves with the bottom edge');
+  assert.equal(renderStreak(model, resolveTheme('dark'), { height: 10 }), natural, 'never shrinks below natural height');
+});
+
+function heightFromSvg(svg) {
+  return Number(/<svg [^>]*height="(\d+)"/.exec(svg)[1]);
+}
+
+test('layout validation rejects unknown and duplicated cards', async () => {
+  const { parseLayout } = require('../src/run');
+  assert.deepEqual(parseLayout('stats, languages ; streak,pin'), [['stats', 'languages'], ['streak', 'pin']]);
+  assert.deepEqual(parseLayout('none'), []);
+  assert.throws(() => parseLayout('stats,trophies'), /Unknown card "trophies" in layout/);
+  assert.throws(() => parseLayout('stats;stats,pin'), /more than one layout row/);
+});

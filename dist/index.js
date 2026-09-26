@@ -21,6 +21,7 @@ Options:
   --languages-count <n>      Number of languages to show (default: 8)
   --exclude-repos <list>     Comma list of repositories to ignore
   --exclude-archived <bool>  Ignore archived repositories for languages and stars (default: true)
+  --layout <rows>            Rows of cards sharing a height, e.g. "stats,languages;streak,pin" (default)
   -h, --help                 Show this help
 `;
 
@@ -66,6 +67,7 @@ async function cli(argv = process.argv.slice(2)) {
     languagesCount: args['languages-count'],
     excludeRepos: args['exclude-repos'],
     excludeArchived: args['exclude-archived'],
+    layout: args.layout,
   });
   if (result.stats) console.log(JSON.stringify({ stats: result.stats }, null, 2));
   return 0;
@@ -643,6 +645,7 @@ async function main() {
       languagesCount: getInput('languages_count', '8'),
       excludeRepos: getInput('exclude_repos', ''),
       excludeArchived: getInput('exclude_archived', 'true'),
+      layout: getInput('layout', 'stats,languages;streak,pin'),
     },
     log,
   );
@@ -689,6 +692,33 @@ function splitList(value) {
     .filter(Boolean);
 }
 
+const DEFAULT_LAYOUT = 'stats,languages;streak,pin';
+
+/**
+ * Parse "stats,languages;streak,pin" into [['stats','languages'],['streak','pin']].
+ * Rows are separated by semicolons, cards within a row by commas.
+ */
+function parseLayout(spec) {
+  if (String(spec == null ? '' : spec).trim().toLowerCase() === 'none') return [];
+  const rows = String(spec == null ? DEFAULT_LAYOUT : spec)
+    .split(';')
+    .map((row) => splitList(row).map((c) => c.toLowerCase()))
+    .filter((row) => row.length > 0);
+  const seen = new Set();
+  for (const row of rows) {
+    for (const c of row) {
+      if (!KNOWN_CARDS.includes(c)) throw new Error(`Unknown card "${c}" in layout. Valid cards: ${KNOWN_CARDS.join(', ')}.`);
+      if (seen.has(c)) throw new Error(`Card "${c}" appears in more than one layout row.`);
+      seen.add(c);
+    }
+  }
+  return rows;
+}
+
+function svgHeight(svg) {
+  return Number(/<svg [^>]*height="(\d+)"/.exec(svg)[1]);
+}
+
 const consoleLog = {
   info: (msg) => console.log(msg),
   warn: (msg) => console.warn(`warning: ${msg}`),
@@ -718,6 +748,7 @@ async function generate(options, log = consoleLog) {
   const languagesCount = Math.min(20, Math.max(1, parseInt(options.languagesCount, 10) || 8));
   const theme = resolveTheme(options.theme, parseColors(options.colors, log.warn), log.warn);
   const outDir = path.resolve(options.outDir || 'cards');
+  const layout = parseLayout(options.layout);
   const now = options.now || new Date();
 
   const client = options.client || gql.createClient({ token: options.token, fetch: options.fetch });
@@ -748,38 +779,53 @@ async function generate(options, log = consoleLog) {
     log.info(`Contribution history: ${years.length} years, ${restricted} private contributions reported by GitHub.`);
   }
 
-  fs.mkdirSync(outDir, { recursive: true });
-  const files = [];
-  const write = (name, svg) => {
-    const file = path.join(outDir, name);
-    fs.writeFileSync(file, svg);
-    files.push(file);
-    log.info(`Wrote ${path.relative(process.cwd(), file) || file}`);
-  };
-
-  const result = { files };
+  // Build every card as a render function first so rows can share a height.
+  const entries = [];
+  const result = {};
   if (cards.includes('stats')) {
-    result.stats = data.computeStats({ user: profile, repos, years, exclude, excludeArchived });
-    write('stats.svg', renderStats(result.stats, theme));
+    const model = data.computeStats({ user: profile, repos, years, exclude, excludeArchived });
+    result.stats = model;
+    entries.push({ card: 'stats', name: 'stats.svg', render: (o) => renderStats(model, theme, o) });
   }
   if (cards.includes('languages')) {
-    result.languages = data.aggregateLanguages(repos, { count: languagesCount, exclude, excludeArchived });
-    write('languages.svg', renderLanguages(result.languages, theme));
+    const model = data.aggregateLanguages(repos, { count: languagesCount, exclude, excludeArchived });
+    result.languages = model;
+    entries.push({ card: 'languages', name: 'languages.svg', render: (o) => renderLanguages(model, theme, o) });
   }
   if (cards.includes('streak')) {
-    result.streak = data.computeStreakCard(years, now);
-    write('streak.svg', renderStreak(result.streak, theme));
+    const model = data.computeStreakCard(years, now);
+    result.streak = model;
+    entries.push({ card: 'streak', name: 'streak.svg', render: (o) => renderStreak(model, theme, o) });
   }
   result.pins = [];
   for (const pin of pins) {
     const repo = await gql.fetchRepository(client, pin.owner, pin.name);
     result.pins.push(repo);
-    write(`pin-${slugFor(repo.nameWithOwner)}.svg`, renderPin(repo, theme));
+    entries.push({ card: 'pin', name: `pin-${slugFor(repo.nameWithOwner)}.svg`, render: (o) => renderPin(repo, theme, o) });
+  }
+
+  for (const e of entries) e.naturalHeight = svgHeight(e.render({}));
+  for (const row of layout) {
+    const members = entries.filter((e) => row.includes(e.card));
+    const rowHeight = Math.max(0, ...members.map((e) => e.naturalHeight));
+    for (const e of members) e.height = rowHeight;
+  }
+
+  fs.mkdirSync(outDir, { recursive: true });
+  result.files = [];
+  result.heights = {};
+  for (const e of entries) {
+    const svg = e.render({ height: e.height });
+    const file = path.join(outDir, e.name);
+    fs.writeFileSync(file, svg);
+    result.files.push(file);
+    result.heights[e.name] = svgHeight(svg);
+    log.info(`Wrote ${path.relative(process.cwd(), file) || file} (${result.heights[e.name]}px tall)`);
   }
   return result;
 }
 
-module.exports = { generate, splitList, KNOWN_CARDS };
+module.exports = { generate, splitList, parseLayout, KNOWN_CARDS, DEFAULT_LAYOUT };
 
 },
 "src/svg/common.js": function (module, exports, require) {
@@ -788,7 +834,11 @@ module.exports = { generate, splitList, KNOWN_CARDS };
 const languageColors = require('./languageColors.json');
 
 const WIDTH = 480;
-const PAD = 24;
+const PAD = 24; // outer padding on every side
+const TITLE_Y = 36; // title baseline, identical on every card
+const CONTENT_Y = 64; // first content baseline below the title
+const FOOTER_GAP = 32; // last content baseline to footer baseline
+const FOOTER_PAD = 20; // footer baseline to the bottom edge
 const FONT = '-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Helvetica, Arial, sans-serif';
 
 /**
@@ -835,15 +885,31 @@ function languageColor(name, apiColor) {
   return languageColors[name] || apiColor || '#8b949e';
 }
 
+/** Footer baseline and natural card height for a card whose content ends at `lastContentY`. */
+function footerLayout(lastContentY) {
+  const footerY = lastContentY + FOOTER_GAP;
+  return { footerY, height: footerY + FOOTER_PAD };
+}
+
+function footerText(y, text) {
+  return `  <text x="${PAD}" y="${y}" class="small">${escapeXml(text)}</text>`;
+}
+
 /**
- * Shared card frame: rounded 8px rectangle, 1px border, title, body.
+ * Shared card frame: rounded 8px rectangle, 1px border, title, body, footer.
+ * Every card is laid out at its natural height. When `height` is larger (cards
+ * sharing a row), the title stays at the same top offset, the body is centred
+ * in the extra space, and the footer stays pinned to the bottom edge.
  * `id` keeps element ids unique when several cards are inlined on one page.
  */
-function renderCard({ id, height, title, desc, body, theme }) {
+function renderCard({ id, naturalHeight, height, title, desc, header = '', body, footer = '', theme }) {
   const t = theme;
+  const h = Math.max(naturalHeight, Math.round(Number(height) || 0));
+  const extra = h - naturalHeight;
+  const shift = (markup, dy) => (dy > 0 && markup ? `  <g transform="translate(0 ${dy})">\n${markup}\n  </g>` : markup);
   const borderOpacity = t.bg === 'none' ? ' stroke-opacity="0.5"' : '';
   return [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${height}" viewBox="0 0 ${WIDTH} ${height}" role="img" aria-labelledby="${id}-title ${id}-desc">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${h}" viewBox="0 0 ${WIDTH} ${h}" role="img" aria-labelledby="${id}-title ${id}-desc">`,
     `  <title id="${id}-title">${escapeXml(title)}</title>`,
     `  <desc id="${id}-desc">${escapeXml(desc)}</desc>`,
     '  <style>',
@@ -851,20 +917,39 @@ function renderCard({ id, height, title, desc, body, theme }) {
     `    .title { font-size: 16px; font-weight: 600; fill: ${t.title}; }`,
     `    .label { font-size: 13px; fill: ${t.muted}; }`,
     `    .value { font-size: 13px; font-weight: 600; fill: ${t.text}; }`,
-    `    .small { font-size: 11px; fill: ${t.muted}; }`,
+    `    .small { font-size: 12px; fill: ${t.muted}; }`,
     `    .big { font-size: 28px; font-weight: 600; fill: ${t.text}; }`,
     `    .accent { fill: ${t.accent}; }`,
     `    .body { font-size: 13px; fill: ${t.text}; }`,
     '  </style>',
-    `  <rect x="0.5" y="0.5" width="${WIDTH - 1}" height="${height - 1}" rx="7.5" fill="${t.bg}" stroke="${t.border}"${borderOpacity}/>`,
-    `  <text x="${PAD}" y="36" class="title">${escapeXml(title)}</text>`,
-    body,
+    `  <rect x="0.5" y="0.5" width="${WIDTH - 1}" height="${h - 1}" rx="7.5" fill="${t.bg}" stroke="${t.border}"${borderOpacity}/>`,
+    `  <text x="${PAD}" y="${TITLE_Y}" class="title">${escapeXml(title)}</text>`,
+    header,
+    shift(body, Math.floor(extra / 2)),
+    shift(footer, extra),
     '</svg>',
     '',
-  ].join('\n');
+  ]
+    .filter((line) => line !== '')
+    .join('\n')
+    .concat('\n');
 }
 
-module.exports = { WIDTH, PAD, escapeXml, formatNumber, formatPercent, formatDate, formatRange, languageColor, renderCard };
+module.exports = {
+  WIDTH,
+  PAD,
+  TITLE_Y,
+  CONTENT_Y,
+  escapeXml,
+  formatNumber,
+  formatPercent,
+  formatDate,
+  formatRange,
+  languageColor,
+  footerLayout,
+  footerText,
+  renderCard,
+};
 
 },
 "src/svg/languageColors.json": function (module, exports, require) {
@@ -873,14 +958,14 @@ module.exports = {"Assembly":"#6E4C13","Astro":"#ff5a03","Batchfile":"#C1F12E","
 "src/svg/languages.js": function (module, exports, require) {
 'use strict';
 
-const { WIDTH, PAD, escapeXml, formatNumber, formatPercent, languageColor, renderCard } = require('./common');
+const { WIDTH, PAD, CONTENT_Y, escapeXml, formatNumber, formatPercent, languageColor, footerLayout, footerText, renderCard } = require('./common');
 
-const BAR_Y = 54;
 const BAR_H = 10;
-const LEGEND_START = 92;
+const BAR_Y = CONTENT_Y - BAR_H; // bar sits where the first line of text would
+const LEGEND_START = CONTENT_Y + 28;
 const LEGEND_GAP = 24;
 
-function renderLanguages(model, theme) {
+function renderLanguages(model, theme, { height } = {}) {
   const { languages, repoCount, privateCount } = model;
   const barWidth = WIDTH - PAD * 2;
   const parts = [];
@@ -906,10 +991,8 @@ function renderLanguages(model, theme) {
 
     const colWidth = barWidth / 2;
     languages.forEach((lang, i) => {
-      const col = i % 2;
-      const row = Math.floor(i / 2);
-      const cx = PAD + col * colWidth;
-      const y = LEGEND_START + row * LEGEND_GAP;
+      const cx = PAD + (i % 2) * colWidth;
+      const y = LEGEND_START + Math.floor(i / 2) * LEGEND_GAP;
       parts.push('  <g>');
       parts.push(`    <circle cx="${cx + 5}" cy="${y - 4}" r="5" fill="${languageColor(lang.name, lang.color)}"/>`);
       parts.push(`    <text x="${cx + 16}" y="${y}" class="body">${escapeXml(lang.name)}</text>`);
@@ -919,14 +1002,12 @@ function renderLanguages(model, theme) {
   }
 
   const rows = Math.max(1, Math.ceil(languages.length / 2));
-  const footerY = LEGEND_START + (rows - 1) * LEGEND_GAP + 32;
+  const { footerY, height: naturalHeight } = footerLayout(LEGEND_START + (rows - 1) * LEGEND_GAP);
   const privateNote = privateCount > 0 ? ` (${formatNumber(privateCount)} private)` : ' (public only)';
-  parts.push(`  <text x="${PAD}" y="${footerY}" class="small">${escapeXml(`By bytes across ${formatNumber(repoCount)} repositories${privateNote}. ${model.excludeArchived ? 'Archived and forks excluded.' : 'Forks excluded.'}`)}</text>`);
-  const height = footerY + 22;
-  const desc = languages.length
-    ? languages.map((l) => `${l.name} ${formatPercent(l.percent)}`).join(', ')
-    : 'No language data';
-  return renderCard({ id: 'truestats-languages', height, title: 'Most used languages', desc, body: parts.join('\n'), theme });
+  const excluded = model.excludeArchived ? 'Archived and forks excluded.' : 'Forks excluded.';
+  const footer = footerText(footerY, `By bytes across ${formatNumber(repoCount)} repositories${privateNote}. ${excluded}`);
+  const desc = languages.length ? languages.map((l) => `${l.name} ${formatPercent(l.percent)}`).join(', ') : 'No language data';
+  return renderCard({ id: 'truestats-languages', naturalHeight, height, title: 'Most used languages', desc, body: parts.join('\n'), footer, theme });
 }
 
 module.exports = { renderLanguages };
@@ -935,7 +1016,7 @@ module.exports = { renderLanguages };
 "src/svg/pin.js": function (module, exports, require) {
 'use strict';
 
-const { WIDTH, PAD, escapeXml, formatNumber, languageColor, renderCard } = require('./common');
+const { WIDTH, PAD, TITLE_Y, CONTENT_Y, escapeXml, formatNumber, languageColor, footerLayout, renderCard } = require('./common');
 
 // Roughly 62 characters of 13px system sans fit in the 432px text column.
 const CHARS_PER_LINE = 62;
@@ -968,35 +1049,46 @@ function slugFor(nameWithOwner) {
   return String(nameWithOwner).toLowerCase().replace(/[^a-z0-9._-]+/g, '-');
 }
 
-function renderPin(repo, theme) {
-  const parts = [];
-  const lines = wrapText(repo.description || 'No description provided.');
+function renderPin(repo, theme, { height } = {}) {
   const tags = [];
   if (repo.isPrivate) tags.push('Private');
   if (repo.isArchived) tags.push('Archived');
   if (repo.isFork) tags.push('Fork');
-  if (tags.length) {
-    parts.push(`  <text x="${WIDTH - PAD}" y="36" class="small" text-anchor="end">${escapeXml(tags.join(' / '))}</text>`);
-  }
-  lines.forEach((line, i) => {
-    parts.push(`  <text x="${PAD}" y="${64 + i * 20}" class="body">${escapeXml(line)}</text>`);
-  });
-  const metaY = 64 + (lines.length - 1) * 20 + 34;
+  const header = tags.length
+    ? `  <text x="${WIDTH - PAD}" y="${TITLE_Y}" class="small" text-anchor="end">${escapeXml(tags.join(' / '))}</text>`
+    : '';
+
+  const lines = wrapText(repo.description || 'No description provided.');
+  const body = lines.map((line, i) => `  <text x="${PAD}" y="${CONTENT_Y + i * 20}" class="body">${escapeXml(line)}</text>`).join('\n');
+
+  // The metadata row is the pin card's footer: same style and bottom padding as other footers.
+  const { footerY, height: naturalHeight } = footerLayout(CONTENT_Y + (lines.length - 1) * 20);
+  const meta = [];
   let x = PAD;
   const lang = repo.primaryLanguage;
   if (lang && lang.name) {
-    parts.push(`  <circle cx="${x + 5}" cy="${metaY - 4}" r="5" fill="${languageColor(lang.name, lang.color)}"/>`);
-    parts.push(`  <text x="${x + 16}" y="${metaY}" class="label">${escapeXml(lang.name)}</text>`);
-    x += 16 + [...lang.name].length * 7.5 + 20;
+    meta.push(`  <circle cx="${x + 5}" cy="${footerY - 4}" r="5" fill="${languageColor(lang.name, lang.color)}"/>`);
+    meta.push(`  <text x="${x + 16}" y="${footerY}" class="small">${escapeXml(lang.name)}</text>`);
+    x += 16 + [...lang.name].length * 7 + 18;
   }
   const stars = `${formatNumber(repo.stargazerCount)} ${repo.stargazerCount === 1 ? 'star' : 'stars'}`;
   const forks = `${formatNumber(repo.forkCount)} ${repo.forkCount === 1 ? 'fork' : 'forks'}`;
-  parts.push(`  <text x="${x}" y="${metaY}" class="label">${escapeXml(stars)}</text>`);
-  x += stars.length * 7.5 + 20;
-  parts.push(`  <text x="${x}" y="${metaY}" class="label">${escapeXml(forks)}</text>`);
-  const height = metaY + 24;
+  meta.push(`  <text x="${x}" y="${footerY}" class="small">${escapeXml(stars)}</text>`);
+  x += stars.length * 7 + 18;
+  meta.push(`  <text x="${x}" y="${footerY}" class="small">${escapeXml(forks)}</text>`);
+
   const desc = `${repo.nameWithOwner}: ${repo.description || 'No description'}. ${lang && lang.name ? `${lang.name}. ` : ''}${stars}, ${forks}.`;
-  return renderCard({ id: `truestats-pin-${slugFor(repo.nameWithOwner)}`, height, title: repo.name, desc, body: parts.join('\n'), theme });
+  return renderCard({
+    id: `truestats-pin-${slugFor(repo.nameWithOwner)}`,
+    naturalHeight,
+    height,
+    title: repo.name,
+    desc,
+    header,
+    body,
+    footer: meta.join('\n'),
+    theme,
+  });
 }
 
 module.exports = { renderPin, wrapText, slugFor };
@@ -1005,12 +1097,12 @@ module.exports = { renderPin, wrapText, slugFor };
 "src/svg/stats.js": function (module, exports, require) {
 'use strict';
 
-const { WIDTH, PAD, escapeXml, formatNumber, renderCard } = require('./common');
+const { WIDTH, PAD, CONTENT_Y, escapeXml, formatNumber, footerLayout, footerText, renderCard } = require('./common');
 
-const ROW_START = 70;
-const ROW_GAP = 26;
+// 25px rows keep seven lines compact enough to pair with the languages card.
+const ROW_GAP = 25;
 
-function renderStats(stats, theme) {
+function renderStats(stats, theme, { height } = {}) {
   const rows = [
     { label: 'Commits (all time, incl. private)', value: stats.commits, accent: true },
     { label: 'Pull requests', value: stats.pullRequests },
@@ -1020,26 +1112,32 @@ function renderStats(stats, theme) {
     { label: 'Followers', value: stats.followers },
     { label: 'Contributed to (last year)', value: stats.contributedTo },
   ];
-  const lines = rows.map((row, i) => {
-    const y = ROW_START + i * ROW_GAP;
-    const marker = `<rect x="${PAD}" y="${y - 10}" width="3" height="12" rx="1.5" class="accent"${row.accent ? '' : ' opacity="0.35"'}/>`;
-    return [
-      `  <g>`,
-      `    ${marker}`,
-      `    <text x="${PAD + 12}" y="${y}" class="label">${escapeXml(row.label)}</text>`,
-      `    <text x="${WIDTH - PAD}" y="${y}" class="value" text-anchor="end">${formatNumber(row.value)}</text>`,
-      `  </g>`,
-    ].join('\n');
-  });
-  const footerY = ROW_START + (rows.length - 1) * ROW_GAP + 34;
+  const body = rows
+    .map((row, i) => {
+      const y = CONTENT_Y + i * ROW_GAP;
+      return [
+        '  <g>',
+        `    <rect x="${PAD}" y="${y - 10}" width="3" height="12" rx="1.5" class="accent"${row.accent ? '' : ' opacity="0.35"'}/>`,
+        `    <text x="${PAD + 12}" y="${y}" class="label">${escapeXml(row.label)}</text>`,
+        `    <text x="${WIDTH - PAD}" y="${y}" class="value" text-anchor="end">${formatNumber(row.value)}</text>`,
+        '  </g>',
+      ].join('\n');
+    })
+    .join('\n');
+  const { footerY, height: naturalHeight } = footerLayout(CONTENT_Y + (rows.length - 1) * ROW_GAP);
   const since = stats.firstYear ? `Since ${stats.firstYear}. ` : '';
-  const footer = `  <text x="${PAD}" y="${footerY}" class="small">${escapeXml(
-    `${since}Commits include ${formatNumber(stats.privateContributions)} private contributions.`,
-  )}</text>`;
-  const height = footerY + 22;
-  const title = `${stats.name}'s GitHub stats`;
+  const footer = footerText(footerY, `${since}Commits include ${formatNumber(stats.privateContributions)} private contributions.`);
   const desc = rows.map((r) => `${r.label}: ${formatNumber(r.value)}`).join('. ');
-  return renderCard({ id: 'truestats-stats', height, title, desc, body: [...lines, footer].join('\n'), theme });
+  return renderCard({
+    id: 'truestats-stats',
+    naturalHeight,
+    height,
+    title: `${stats.name}'s GitHub stats`,
+    desc,
+    body,
+    footer,
+    theme,
+  });
 }
 
 module.exports = { renderStats };
@@ -1048,9 +1146,13 @@ module.exports = { renderStats };
 "src/svg/streak.js": function (module, exports, require) {
 'use strict';
 
-const { WIDTH, PAD, escapeXml, formatNumber, formatRange, formatDate, renderCard } = require('./common');
+const { WIDTH, PAD, CONTENT_Y, escapeXml, formatNumber, formatRange, formatDate, footerLayout, footerText, renderCard } = require('./common');
 
-function renderStreak(model, theme) {
+const VALUE_Y = CONTENT_Y + 28; // 28px numbers: cap height starts near CONTENT_Y
+const LABEL_Y = VALUE_Y + 26;
+const SUB_Y = LABEL_Y + 20;
+
+function renderStreak(model, theme, { height } = {}) {
   const colWidth = (WIDTH - PAD * 2) / 3;
   const columns = [
     {
@@ -1059,13 +1161,13 @@ function renderStreak(model, theme) {
       sub: `Jan 1 - ${model.today ? formatDate(model.today, false) : 'today'}`,
     },
     {
-      value: `${formatNumber(model.current.length)}`,
+      value: formatNumber(model.current.length),
       label: model.current.length === 1 ? 'Current streak (day)' : 'Current streak (days)',
       sub: formatRange(model.current.start, model.current.end),
       accent: true,
     },
     {
-      value: `${formatNumber(model.longest.length)}`,
+      value: formatNumber(model.longest.length),
       label: model.longest.length === 1 ? 'Longest streak (day)' : 'Longest streak (days)',
       sub: formatRange(model.longest.start, model.longest.end),
     },
@@ -1074,18 +1176,19 @@ function renderStreak(model, theme) {
   columns.forEach((c, i) => {
     const cx = PAD + colWidth * i + colWidth / 2;
     parts.push('  <g>');
-    parts.push(`    <text x="${cx}" y="98" class="big${c.accent ? ' accent' : ''}" text-anchor="middle">${escapeXml(c.value)}</text>`);
-    parts.push(`    <text x="${cx}" y="124" class="label" text-anchor="middle">${escapeXml(c.label)}</text>`);
-    parts.push(`    <text x="${cx}" y="144" class="small" text-anchor="middle">${escapeXml(c.sub)}</text>`);
+    parts.push(`    <text x="${cx}" y="${VALUE_Y}" class="big${c.accent ? ' accent' : ''}" text-anchor="middle">${escapeXml(c.value)}</text>`);
+    parts.push(`    <text x="${cx}" y="${LABEL_Y}" class="label" text-anchor="middle">${escapeXml(c.label)}</text>`);
+    parts.push(`    <text x="${cx}" y="${SUB_Y}" class="small" text-anchor="middle">${escapeXml(c.sub)}</text>`);
     parts.push('  </g>');
     if (i > 0) {
       const x = PAD + colWidth * i;
-      parts.push(`  <line x1="${x}" y1="68" x2="${x}" y2="148" stroke="${theme.border}" stroke-width="1"/>`);
+      parts.push(`  <line x1="${x}" y1="${CONTENT_Y}" x2="${x}" y2="${SUB_Y + 4}" stroke="${theme.border}" stroke-width="1"/>`);
     }
   });
-  const height = 172;
+  const { footerY, height: naturalHeight } = footerLayout(SUB_Y);
+  const footer = footerText(footerY, 'A streak is consecutive days (UTC) with at least one contribution.');
   const desc = columns.map((c) => `${c.label}: ${c.value} (${c.sub})`).join('. ');
-  return renderCard({ id: 'truestats-streak', height, title: 'Contribution streak', desc, body: parts.join('\n'), theme });
+  return renderCard({ id: 'truestats-streak', naturalHeight, height, title: 'Contribution streak', desc, body: parts.join('\n'), footer, theme });
 }
 
 module.exports = { renderStreak };

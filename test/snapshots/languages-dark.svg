@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="480" height="194" viewBox="0 0 480 194" role="img" aria-labelledby="truestats-languages-title truestats-languages-desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="192" viewBox="0 0 480 192" role="img" aria-labelledby="truestats-languages-title truestats-languages-desc">
   <title id="truestats-languages-title">Most used languages</title>
   <desc id="truestats-languages-desc">Go 48.4%, TypeScript 24.2%, Swift 20.1%, CSS 4.0%, Shell 1.6%, Other 1.7%</desc>
   <style>
@@ -6,12 +6,12 @@
     .title { font-size: 16px; font-weight: 600; fill: #e6edf3; }
     .label { font-size: 13px; fill: #8b949e; }
     .value { font-size: 13px; font-weight: 600; fill: #c9d1d9; }
-    .small { font-size: 11px; fill: #8b949e; }
+    .small { font-size: 12px; fill: #8b949e; }
     .big { font-size: 28px; font-weight: 600; fill: #c9d1d9; }
     .accent { fill: #58a6ff; }
     .body { font-size: 13px; fill: #c9d1d9; }
   </style>
-  <rect x="0.5" y="0.5" width="479" height="193" rx="7.5" fill="#0d1117" stroke="#30363d"/>
+  <rect x="0.5" y="0.5" width="479" height="191" rx="7.5" fill="#0d1117" stroke="#30363d"/>
   <text x="24" y="36" class="title">Most used languages</text>
   <defs>
     <clipPath id="truestats-lang-bar"><rect x="24" y="54" width="432" height="10" rx="5"/></clipPath>

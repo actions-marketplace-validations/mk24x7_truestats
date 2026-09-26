@@ -76,6 +76,7 @@ async function main() {
       languagesCount: getInput('languages_count', '8'),
       excludeRepos: getInput('exclude_repos', ''),
       excludeArchived: getInput('exclude_archived', 'true'),
+      layout: getInput('layout', 'stats,languages;streak,pin'),
     },
     log,
   );

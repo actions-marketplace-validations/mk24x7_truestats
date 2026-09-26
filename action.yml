@@ -51,6 +51,13 @@ inputs:
     description: Ignore archived repositories for languages and stars. Set to "false" to include them.
     required: false
     default: 'true'
+  layout:
+    description: >-
+      Rows of cards that share a height: semicolon-separated rows of comma-separated card names. Cards in a
+      row are rendered as tall as the tallest one, with content centred and footers aligned. Cards not listed
+      keep their natural height; "pin" applies to every pin card.
+    required: false
+    default: stats,languages;streak,pin
 outputs:
   files:
     description: Comma-separated paths of the SVG files that were written.
