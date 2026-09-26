@@ -1,6 +1,6 @@
 {
   "name": "@mk24x7/truestats",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "GitHub profile stat cards generated inside your own repository, counting private contributions. No third-party server.",
   "license": "MIT",
   "author": "Mukul Kumar Yadav",
