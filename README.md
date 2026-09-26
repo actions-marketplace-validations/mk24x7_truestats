@@ -4,6 +4,7 @@ GitHub profile stat cards that count what you actually did, generated inside you
 own repository with your own token. No third-party server, no rate-limited image
 endpoint, private contributions included.
 
+[![Marketplace](https://img.shields.io/badge/Marketplace-TrueStats%20Profile%20Cards-blue?style=flat-square&logo=github)](https://github.com/marketplace/actions/truestats-profile-cards)
 [![CI](https://github.com/mk24x7/truestats/actions/workflows/ci.yml/badge.svg)](https://github.com/mk24x7/truestats/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
