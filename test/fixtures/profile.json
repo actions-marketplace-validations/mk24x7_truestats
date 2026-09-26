@@ -1,0 +1,77 @@
+{
+  "user": {
+    "login": "octo-dev",
+    "name": "Octo Dev",
+    "createdAt": "2024-03-10T12:00:00Z",
+    "followers": { "totalCount": 1234 },
+    "repositoriesContributedTo": { "totalCount": 7 }
+  },
+  "repos": [
+    {
+      "name": "api", "nameWithOwner": "octo-dev/api", "isPrivate": true, "isFork": false, "stargazerCount": 0, "forkCount": 0,
+      "languages": { "edges": [
+        { "size": 600000, "node": { "name": "Go", "color": "#00ADD8" } },
+        { "size": 20000, "node": { "name": "Shell", "color": "#89e051" } },
+        { "size": 5000, "node": { "name": "Dockerfile", "color": "#384d54" } }
+      ] }
+    },
+    {
+      "name": "site", "nameWithOwner": "octo-dev/site", "isPrivate": false, "isFork": false, "stargazerCount": 42, "forkCount": 3,
+      "languages": { "edges": [
+        { "size": 300000, "node": { "name": "TypeScript", "color": "#3178c6" } },
+        { "size": 50000, "node": { "name": "CSS", "color": "#663399" } },
+        { "size": 10000, "node": { "name": "HTML", "color": "#e34c26" } }
+      ] }
+    },
+    {
+      "name": "app", "nameWithOwner": "octo-dev/app", "isPrivate": true, "isFork": false, "stargazerCount": 0, "forkCount": 0,
+      "languages": { "edges": [
+        { "size": 250000, "node": { "name": "Swift", "color": "#F05138" } },
+        { "size": 4000, "node": { "name": "Ruby", "color": "#701516" } }
+      ] }
+    },
+    {
+      "name": "upstream-fork", "nameWithOwner": "octo-dev/upstream-fork", "isPrivate": false, "isFork": true, "stargazerCount": 5, "forkCount": 0,
+      "languages": { "edges": [
+        { "size": 9000000, "node": { "name": "C++", "color": "#f34b7d" } }
+      ] }
+    },
+    {
+      "name": "notes", "nameWithOwner": "octo-dev/notes", "isPrivate": false, "isFork": false, "stargazerCount": 1, "forkCount": 0,
+      "languages": { "edges": [
+        { "size": 1000, "node": { "name": "Makefile", "color": "#427819" } },
+        { "size": 800, "node": { "name": "Liquid", "color": "#67b8de" } }
+      ] }
+    }
+  ],
+  "years": [
+    { "year": 2024, "commits": 30, "pullRequests": 4, "issues": 2, "reviews": 1, "restricted": 400, "totalContributions": 437,
+      "days": [
+        { "date": "2024-12-29", "contributionCount": 2 },
+        { "date": "2024-12-30", "contributionCount": 1 },
+        { "date": "2024-12-31", "contributionCount": 5 }
+      ] },
+    { "year": 2025, "commits": 25, "pullRequests": 6, "issues": 3, "reviews": 2, "restricted": 900, "totalContributions": 936,
+      "days": [
+        { "date": "2025-01-01", "contributionCount": 3 },
+        { "date": "2025-01-02", "contributionCount": 1 },
+        { "date": "2025-01-03", "contributionCount": 0 },
+        { "date": "2025-06-01", "contributionCount": 4 },
+        { "date": "2025-06-02", "contributionCount": 0 },
+        { "date": "2025-06-03", "contributionCount": 7 },
+        { "date": "2025-06-04", "contributionCount": 2 },
+        { "date": "2025-06-05", "contributionCount": 1 }
+      ] }
+  ],
+  "pin": {
+    "name": "truestats-demo",
+    "nameWithOwner": "octo-dev/truestats-demo",
+    "description": "A demo repository with a deliberately long description so that the pin card has to wrap it across more than one line of text & escape <markup>.",
+    "isPrivate": false,
+    "isFork": false,
+    "isArchived": false,
+    "stargazerCount": 1,
+    "forkCount": 12,
+    "primaryLanguage": { "name": "JavaScript", "color": "#f1e05a" }
+  }
+}

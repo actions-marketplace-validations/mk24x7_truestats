@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="162" viewBox="0 0 480 162" role="img" aria-labelledby="truestats-pin-octo-dev-truestats-demo-title truestats-pin-octo-dev-truestats-demo-desc">
+  <title id="truestats-pin-octo-dev-truestats-demo-title">truestats-demo</title>
+  <desc id="truestats-pin-octo-dev-truestats-demo-desc">octo-dev/truestats-demo: A demo repository with a deliberately long description so that the pin card has to wrap it across more than one line of text &amp; escape &lt;markup&gt;.. JavaScript. 1 star, 12 forks.</desc>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Helvetica, Arial, sans-serif; }
+    .title { font-size: 16px; font-weight: 600; fill: #1f2328; }
+    .label { font-size: 13px; fill: #57606a; }
+    .value { font-size: 13px; font-weight: 600; fill: #24292f; }
+    .small { font-size: 11px; fill: #57606a; }
+    .big { font-size: 28px; font-weight: 600; fill: #24292f; }
+    .accent { fill: #0969da; }
+    .body { font-size: 13px; fill: #24292f; }
+  </style>
+  <rect x="0.5" y="0.5" width="479" height="161" rx="7.5" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="24" y="36" class="title">truestats-demo</text>
+  <text x="24" y="64" class="body">A demo repository with a deliberately long description so that</text>
+  <text x="24" y="84" class="body">the pin card has to wrap it across more than one line of text</text>
+  <text x="24" y="104" class="body">&amp; escape &lt;markup&gt;.</text>
+  <circle cx="29" cy="134" r="5" fill="#f1e05a"/>
+  <text x="40" y="138" class="label">JavaScript</text>
+  <text x="135" y="138" class="label">1 star</text>
+  <text x="200" y="138" class="label">12 forks</text>
+</svg>
